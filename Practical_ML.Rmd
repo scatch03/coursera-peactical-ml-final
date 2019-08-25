@@ -1,0 +1,240 @@
+---
+title: "Practical Machine Learning - Final Project"
+author: "Oleksandr Vorona"
+date: "25 08 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Building a model for barbell lifts exercise execution classification
+
+### Overview
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+### Data loading and cleaning
+Load all necessary libraries:
+```{r echo=T, message=FALSE, warning=FALSE}
+library(knitr)
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(rattle)
+library(randomForest)
+library(corrplot)
+library(gbm)
+
+set.seed(42)
+```
+
+Loading data into R:
+```{r echo=T, message=FALSE, warning=FALSE}
+trainData <- read.csv(url("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"))
+testData  <- read.csv(url("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"))
+
+inTrain  <- createDataPartition(trainData$classe, p=0.75, list=FALSE)
+train <- trainData[inTrain, ]
+test  <- trainData[-inTrain, ]
+```
+
+Data set dimensions:
+```{r echo=T, message=FALSE, warning=FALSE}
+dim(train)
+dim(test)
+```
+
+Remove variables with a near zero variance - they cannot be a good predictors:
+```{r echo=TRUE}
+noVariance <- nearZeroVar(train)
+train <- train[, -noVariance]
+test  <- test[, -noVariance]
+```
+
+New data set dimensions:
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+dim(train)
+dim(test)
+```
+
+Remove variables with high NA value counts (more than a half):
+```{r echo=T}
+tooManyNAs <- sapply(train, function(x) mean(is.na(x))) > 0.5
+train <- train[, !tooManyNAs]
+test  <- test [, !tooManyNAs]
+```
+
+New data set dimensions:
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+dim(train)
+dim(test)
+```
+
+Lastly, all identification-related data may be safely removed (columns 1-5 of a given data set):
+```{r echo=T}
+train <- train[, -(1:5)]
+test  <- test [, -(1:5)]
+```
+
+New data set dimensions:
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+dim(train)
+dim(test)
+```
+
+
+### Correlation analysis
+Building predictors mutual correlation matrix:
+```{r echo=T}
+corMatrix <- cor(train[, -54]) # excluding outcome variable
+corrplot(corMatrix, order = "FPC", method = "color", type = "lower",  tl.cex = 0.8, tl.col = rgb(0, 0, 0))
+```
+
+Highly correlated values can be spotted by a more dark colours in a resulting plot. PCA (Principle Component Analysis)
+can be applied as a preprocessing step to reduce data dimensionality based on a correlations present.
+
+### Model building
+
+##### Decision tree model
+```{r echo=T, cache=T}
+model.dt <- train(classe ~ ., data=train, method="rpart")
+model.dt$finalModel
+```
+
+Evaluating decision tree model on a test data set:
+```{r echo=T}
+predict.dt <- predict(model.dt, newdata=test)
+predict.dt.confuse <- confusionMatrix(predict.dt, test$classe)
+predict.dt.confuse
+```
+
+Visualize decision tree classification accuracy:
+```{r echo=T}
+plot(predict.dt.confuse$table, col = predict.dt.confuse$byClass, 
+     main = paste("Decision trees - Accuracy =",
+                  round(predict.dt.confuse$overall['Accuracy'], 4)))
+```
+
+##### Decision tree model with PCA
+```{r echo=T, cache=T}
+model.dt.pca <- train(classe ~ ., data=train, preProcess="pca", method="rpart")
+model.dt.pca$finalModel
+```
+
+Evaluating decision tree model with PCA on a test data set:
+```{r echo=T}
+predict.dt.pca <- predict(model.dt.pca, newdata=test)
+predict.dt.pca.confuse <- confusionMatrix(predict.dt.pca, test$classe)
+predict.dt.pca.confuse
+```
+
+Visualize decision tree with PCA classification accuracy:
+```{r echo=T}
+plot(predict.dt.pca.confuse$table, col = predict.dt.pca.confuse$byClass, 
+     main = paste("Decision trees with PCA - Accuracy =",
+                  round(predict.dt.pca.confuse$overall['Accuracy'], 4)))
+```
+
+##### Random forest model
+```{r echo=T, cache=T}
+model.rf.tc <- trainControl(method="cv", number=3, verboseIter=FALSE)
+model.rf <- train(classe ~ ., data=train, method="rf", trControl=model.rf.tc)
+model.rf$finalModel
+```
+
+Evaluating random forest model on a test data set:
+```{r echo=T}
+predict.rf <- predict(model.rf, newdata=test)
+predict.rf.confuse <- confusionMatrix(predict.rf, test$classe)
+predict.rf.confuse
+```
+
+Visualize random forest classification accuracy:
+```{r echo=T}
+plot(predict.rf.confuse$table, col = predict.rf.confuse$byClass, 
+     main = paste("Random forest - Accuracy =",
+                  round(predict.rf.confuse$overall['Accuracy'], 4)))
+```
+
+##### Random forest model with PCA
+```{r echo=T, cache=T, warning=F}
+model.rf.pca <- train(classe ~ ., data=train, method="rf",  preProcess="pca", trControl=model.rf.tc)
+model.rf.pca$finalModel
+```
+
+Evaluating random forest model with PCA on a test data set:
+```{r echo=T}
+predict.rf.pca <- predict(model.rf.pca, newdata=test)
+predict.rf.pca.confuse <- confusionMatrix(predict.rf.pca, test$classe)
+predict.rf.pca.confuse
+```
+
+Visualize random forest with PCA classification accuracy:
+```{r echo=T}
+plot(predict.rf.pca.confuse$table, col = predict.rf.pca.confuse$byClass, 
+     main = paste("Random forest (PCA) - Accuracy =",
+                  round(predict.rf.pca.confuse$overall['Accuracy'], 4)))
+```
+
+##### Gradient boosting machine model
+```{r echo=T}
+model.gbm.tc <- trainControl(method = "repeatedcv", number = 5, repeats = 1)
+model.gbm    <- train(classe ~ ., data=train, method = "gbm", trControl = model.gbm.tc, verbose = FALSE)
+model.gbm$finalModel
+```
+
+Evaluating gradient booting machine model on a test data set:
+```{r echo=T}
+predict.gbm <- predict(model.gbm, newdata=test)
+predict.gbm.confuse <- confusionMatrix(predict.gbm, test$classe)
+predict.gbm.confuse
+```
+
+Visualize gradient boosting machine classification accuracy:
+```{r echo=T}
+plot(predict.gbm.confuse$table, col = predict.gbm.confuse$byClass, 
+     main = paste("Gradient boosting - Accuracy =",
+                  round(predict.gbm.confuse$overall['Accuracy'], 4)))
+```
+
+##### Gradient boosting machine with PCA model
+```{r echo=T}
+model.gbm.pca    <- train(classe ~ ., data=train, method = "gbm", preProcess="pca", trControl = model.gbm.tc, verbose = FALSE)
+model.gbm.pca$finalModel
+```
+
+Evaluating gradient booting machine model on a test data set:
+```{r echo=T}
+predict.gbm.pca <- predict(model.gbm.pca, newdata=test)
+predict.gbm.pca.confuse <- confusionMatrix(predict.gbm.pca, test$classe)
+predict.gbm.pca.confuse
+```
+
+Visualize gradient boosting machine with PCA classification accuracy:
+```{r echo=T}
+plot(predict.gbm.pca.confuse$table, col = predict.gbm.pca.confuse$byClass, 
+     main = paste("Gradient boosting with PCA - Accuracy =",
+                  round(predict.gbm.pca.confuse$overall['Accuracy'], 4)))
+```
+
+### Model selection
+Accuracy on a test data set for all methods can be summarized as followed:
+1. Decision trees                         0.5744
+2. Decision trees with PCA                0.3925
+3. Random forest                          0.9986
+4. Random forest with PCA                 0.9719
+5. Gradient boosting machine              0.9874
+6. Gradient boosting machine with PCA     0.8059
+
+Best algorithm appears to be a random forest (estimated error of 0.014), with gradient boosting machine
+being a close second (estimated error of 0.126). PCA preprocessing generally lowered accuracy of a 
+models, apparently since there is not that match redundancy in data.
+
+### Model application
+Built random forest classification model can be applied to produce predicted values for a test data:
+```{r echo=T}
+predicted <- predict(model.rf, newdata=testData)
+predicted
+```
+
