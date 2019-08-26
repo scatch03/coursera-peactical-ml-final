@@ -779,7 +779,15 @@ predict.gbm.pca.confuse</code></pre>
 </div>
 <div id="model-selection" class="section level3">
 <h3>Model selection</h3>
-<p>Accuracy on a test data set for all methods can be summarized as followed: 1. Decision trees 0.5744 2. Decision trees with PCA 0.3925 3. Random forest 0.9986 4. Random forest with PCA 0.9719 5. Gradient boosting machine 0.9874 6. Gradient boosting machine with PCA 0.8059</p>
+<p>Accuracy on a test data set for all methods can be summarized as followed:</p>
+<ol style="list-style-type: decimal">
+<li>Decision trees 0.5744</li>
+<li>Decision trees with PCA 0.3925</li>
+<li>Random forest 0.9986</li>
+<li>Random forest with PCA 0.9719</li>
+<li>Gradient boosting machine 0.9874</li>
+<li>Gradient boosting machine with PCA 0.8059</li>
+</ol>
 <p>Best algorithm appears to be a random forest (estimated error of 0.014), with gradient boosting machine being a close second (estimated error of 0.126). PCA preprocessing generally lowered accuracy of a models, apparently since there is not that match redundancy in data.</p>
 </div>
 <div id="model-application" class="section level3">

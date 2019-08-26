@@ -178,7 +178,7 @@ plot(predict.rf.pca.confuse$table, col = predict.rf.pca.confuse$byClass,
 ```
 
 ##### Gradient boosting machine model
-```{r echo=T}
+```{r echo=T, cache=T}
 model.gbm.tc <- trainControl(method = "repeatedcv", number = 5, repeats = 1)
 model.gbm    <- train(classe ~ ., data=train, method = "gbm", trControl = model.gbm.tc, verbose = FALSE)
 model.gbm$finalModel
@@ -199,7 +199,7 @@ plot(predict.gbm.confuse$table, col = predict.gbm.confuse$byClass,
 ```
 
 ##### Gradient boosting machine with PCA model
-```{r echo=T}
+```{r echo=T, cache=T}
 model.gbm.pca    <- train(classe ~ ., data=train, method = "gbm", preProcess="pca", trControl = model.gbm.tc, verbose = FALSE)
 model.gbm.pca$finalModel
 ```
@@ -220,6 +220,7 @@ plot(predict.gbm.pca.confuse$table, col = predict.gbm.pca.confuse$byClass,
 
 ### Model selection
 Accuracy on a test data set for all methods can be summarized as followed:
+
 1. Decision trees                         0.5744
 2. Decision trees with PCA                0.3925
 3. Random forest                          0.9986
